@@ -98,13 +98,166 @@ export class Mutator {
   visitor: walk.RecursiveVisitors<any> = {
     ArrayExpression: (node) => { todo() },
     AssignmentExpression: (node) => { todo() },
-    BinaryExpression: (node) => { todo() },
-    BlockStatement: (node) => { todo() },
+    BinaryExpression: (node) => {
+      const { visitor, addMutant } = this;
+      const { left, operator, right } = node;
+
+      switch (operator) {
+        case '+': 
+          node.operator = '-';
+          addMutant(MutantType.Arithmetic, node);
+          node.operator = operator;
+          break;
+        case '-':
+          node.operator = '+';
+          addMutant(MutantType.Arithmetic, node);
+          node.operator = operator;
+          break;
+        case '*':
+          node.operator = '/';
+          addMutant(MutantType.Arithmetic, node);
+          node.operator = '%';
+          addMutant(MutantType.Arithmetic, node);
+          node.operator = operator;
+          break;
+        case '/':
+          node.operator = '*';
+          addMutant(MutantType.Arithmetic, node);
+          node.operator = '%';
+          addMutant(MutantType.Arithmetic, node);
+          node.operator = operator;
+          break;
+        case '%':
+          node.operator = '*';
+          addMutant(MutantType.Arithmetic, node);
+          node.operator = '/';
+          addMutant(MutantType.Arithmetic, node);
+          node.operator = operator;
+          break;
+        case '<':
+          node.operator = '<=';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = '>=';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = operator;
+          break;
+        case '<=':
+          node.operator = '<';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = '>';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = operator;
+          break;
+        case '>':
+          node.operator = '>=';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = '<=';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = operator;
+          break;
+        case '>=':
+          node.operator = '>';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = '<';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = operator;
+          break;
+        case '===':
+          node.operator = '!==';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = '==';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = operator;
+          break;
+        case '!==':
+          node.operator = '===';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = '!=';
+          addMutant(MutantType.EqualityOp, node);
+          node.operator = operator;
+          break;
+        case '==':
+          node.operator = '!=';
+          addMutant(MutantType.EqualityOp, node);
+          if (!(left.type === 'Literal' && left.value === null || right.type === 'Literal' && right.value === null))
+          {
+            node.operator = '===';
+            addMutant(MutantType.EqualityOp, node);
+          }
+          node.operator = operator;
+          break;
+        case '!=':
+          node.operator = '==';
+          addMutant(MutantType.EqualityOp, node);
+          if (!(left.type === 'Literal' && left.value === null || right.type === 'Literal' && right.value === null))
+          {
+            node.operator = '!==';
+            addMutant(MutantType.EqualityOp, node);
+          }
+          node.operator = operator;
+          break;
+        }
+        walk.recursive(left, null, visitor);
+        walk.recursive(right, null, visitor);        
+    },
+    BlockStatement: (node) => {
+      const { visitor, addMutant } = this;
+      const { body } = node;
+
+      if(node.body.length > 0)
+      {
+        node.body = [];
+        addMutant(MutantType.BlockStmt, node);
+        node.body = body;
+      }
+
+      for (const p of body){
+        walk.recursive(p, null, visitor);
+      }
+    },
     ChainExpression: (node) => { todo() },
     ConditionalExpression: (node) => { todo() },
     DoWhileStatement: (node) => { todo() },
-    ForStatement: (node) => { todo() },
-    IfStatement: (node) => { todo() },
+    ForStatement: (node) => { 
+      const { visitor, addMutant } = this;
+      const { init, test, update, body } = node;
+
+      if (test && !(test.type === 'Literal' && test.value === false))
+      {
+        node.test = createBoolLiteral(false);
+        addMutant(MutantType.Cond, node);
+        node.test = test;
+      }
+      if (init)
+        walk.recursive(init, null, visitor);
+      if (test)
+        walk.recursive(test, null, visitor);
+      if (update)
+        walk.recursive(update, null, visitor);
+      if (body)
+        walk.recursive(body, null, visitor);
+    },
+    IfStatement: (node) => { 
+      const { visitor, addMutant } = this;
+      const { test, consequent, alternate } = node;
+      
+      if (!(test.type === 'Literal' && test.value === true))
+      {
+        node.test = createBoolLiteral(true);
+        addMutant(MutantType.Cond, node);
+      }
+      if (!(test.type === 'Literal' && test.value === false))
+      {
+        node.test = createBoolLiteral(false);
+        addMutant(MutantType.Cond, node);
+      }
+      node.test = test;
+
+      walk.recursive(test, null, visitor);
+      walk.recursive(consequent, null, visitor);
+      if (alternate)
+        walk.recursive(alternate, null, visitor);
+    },
     Literal: (node) => { todo() },
     LogicalExpression: (node) => { todo() },
     NewExpression: (node) => { todo() },
